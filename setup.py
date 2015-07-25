@@ -7,6 +7,7 @@ setup(
     author='Jochem Smit',
     author_email='j.h.smit@rug.nl',
     url='https://github.com/Jhsmit/PymageJ/',
+    download_url='https://github.com/Jhsmit/PymageJ/tarball/0.1',
     packages='pymagej',
     license='GNU',
     classifiers=[
@@ -17,5 +18,4 @@ setup(
         'Programming Language :: Python :: 2.7',
     ],
     keywords='ImageJ ROI',
-    install_requires=['numpy'],
 )
