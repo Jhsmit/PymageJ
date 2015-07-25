@@ -1,5 +1,5 @@
 # PymageJ
-Python tools for ImageJ. Current only functionality is read/write ImageJ ROIs.
+Python tools for ImageJ. Features: read/write ImageJ ROIs.
 
 ## How to use
 
@@ -14,7 +14,7 @@ with ROIDecoder('roi_filepath.roi') as roi:
   
 ```
 
-The returned ```roi_obj``` is an ROIObject depending on the type of ROI. Currently only reading rectangle and freehand are supported
+The returned ```roi_obj``` is an ROIObject depending on the type of ROI. Currently only reading rectangle and freehand are supported.
 
 **Writing ROI files:**
 
