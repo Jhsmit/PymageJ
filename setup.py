@@ -8,7 +8,7 @@ setup(
     author_email='j.h.smit@rug.nl',
     url='https://github.com/Jhsmit/PymageJ/',
     download_url='https://github.com/Jhsmit/PymageJ/tarball/0.1',
-    packages='pymagej',
+    packages=['PymageJ'],
     license='GNU',
     classifiers=[
         'Development Status :: 3 - Alpha',
