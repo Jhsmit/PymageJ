@@ -18,4 +18,5 @@ setup(
         'Programming Language :: Python :: 2.7',
     ],
     keywords='ImageJ ROI',
+    requires=['numpy']
 )
