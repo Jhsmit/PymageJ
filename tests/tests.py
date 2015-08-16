@@ -52,6 +52,18 @@ class ROITest(MyTestCase):
 
         os.remove(temp_path)
 
+    def test_decoder_rounded_rect(self):
+        with ROIDecoder('rounded_rectangle.roi') as roi:
+            roi_obj = roi.get_roi()
+
+        self.assertIsInstance(roi_obj, ROIRect)
+        self.assertEqual(roi_obj.top, 276)
+        self.assertEqual(roi_obj.left, 145)
+        self.assertEqual(roi_obj.bottom, 301)
+        self.assertEqual(roi_obj.right, 191)
+        self.assertAlmostEqual(roi_obj.area, 1064.15926536)
+        self.assertEqual(roi_obj.name, 'rounded_rectangle')
+
     def test_decoder_rect(self):
         with ROIDecoder('rect.roi') as roi:
             roi_obj = roi.get_roi()

@@ -16,6 +16,7 @@ import struct
 import re
 from collections import namedtuple
 import os
+import warnings
 
 # http://rsb.info.nih.gov/ij/developer/source/ij/io/RoiDecoder.java.html
 # http://rsb.info.nih.gov/ij/developer/source/ij/io/RoiEncoder.java.html
@@ -33,6 +34,10 @@ class ROIObject(object):
 
 class ROIPolygon(ROIObject):
     type = 'polygon'
+
+    @property
+    def area(self):
+        raise NotImplementedError('Area of polygon ROI is not implemented')
 
 
 class ROIRect(ROIObject):
@@ -59,7 +64,9 @@ class ROIRect(ROIObject):
         if self.arc == 0:
             return self.width * self.height
         else:
-            raise NotImplementedError('Rounded rectangle area not implemented')
+            warnings.warn(r"Rounded rectangle area value differs from ImageJ value as it first 'smooths' to pixels")
+            return self.width * self.height - ((4 - np.pi)*(self.arc/2.)**2)
+
 
 
 class ROIOval(ROIObject):
@@ -500,5 +507,13 @@ class ROIDecoder(ROIFileObject):
         self.header[var_name] = self._get_var(var_name)
 
 
+if __name__ == '__main__':
 
+    import utils
+    utils.set_wkdir('/pymagej')
+
+    with ROIDecoder('rect.roi') as roi:
+        roi_obj = roi.get_roi()
+
+    print roi_obj.arc
 
