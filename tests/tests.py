@@ -12,44 +12,74 @@ Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 0211
 """
 
 import unittest
-import tempfile
 import os
+import numpy as np
 
 from pymagej.roi import ROIEncoder, ROIDecoder, ROIRect, ROIFreehand
 
 
-class ROITest(unittest.TestCase):
+class MyTestCase(unittest.TestCase):
+    def assertArrayEqual(self, it1, it2):
+        np.testing.assert_array_equal(it1, it2)
+
+
+class ROITest(MyTestCase):
     def test_decoder_freehand(self):
         with ROIDecoder('freehand.roi') as roi:
             roi_obj = roi.get_roi()
         self.assertIsInstance(roi_obj, ROIFreehand)
         self.assertEqual(len(roi_obj.x_coords), 117)
+        self.assertEqual(roi_obj.name, '0272-0193')
+
+    def test_encoder_freehand(self):
+        x_coords = [1, 2, 3]
+        y_coords = [4, 5, 6]
+        roi_obj = ROIFreehand(20, 40, x_coords, y_coords, name='freehand_test')
+        temp_path = 'temp_file.roi'
+
+        with ROIEncoder(temp_path, roi_obj) as roi:
+            roi.write()
+
+        with ROIDecoder(temp_path) as roi:
+            roi_obj_read = roi.get_roi()
+
+        self.assertIsInstance(roi_obj_read, ROIFreehand)
+        self.assertEqual(roi_obj_read.top, 20)
+        self.assertEqual(roi_obj_read.left, 40)
+        self.assertArrayEqual(roi_obj_read.x_coords, x_coords)
+        self.assertArrayEqual(roi_obj_read.y_coords, y_coords)
+        self.assertEqual(roi_obj_read.name, 'freehand_test')
+
+        os.remove(temp_path)
 
     def test_decoder_rect(self):
         with ROIDecoder('rect.roi') as roi:
             roi_obj = roi.get_roi()
         self.assertIsInstance(roi_obj, ROIRect)
-        self.assertEqual(roi_obj.top, 0)
-        self.assertEqual(roi_obj.left, 0)
-        self.assertEqual(roi_obj.bottom, 55)
-        self.assertEqual(roi_obj.right, 114)
-        self.assertEqual(roi_obj.area, 6270)
+        self.assertEqual(roi_obj.top, 119)
+        self.assertEqual(roi_obj.left, 136)
+        self.assertEqual(roi_obj.bottom, 194)
+        self.assertEqual(roi_obj.right, 247)
+        self.assertEqual(roi_obj.area, 8325)
+        self.assertEqual(roi_obj.name, 'rectangle')
 
     def test_encoder_rect(self):
-        roi_obj = ROIRect(20, 30, 40, 50)
-        temp_path = tempfile.mkstemp()[1]
-        with ROIEncoder(temp_path, roi_obj) as roi:
+        roi_obj_write = ROIRect(20, 30, 40, 50, name='test_name')
+        temp_path = 'temp_file.roi'
+
+        with ROIEncoder(temp_path, roi_obj_write) as roi:
             roi.write()
 
         with ROIDecoder(temp_path) as roi:
-            roi_obj = roi.get_roi()
+            roi_obj_read = roi.get_roi()
 
-        self.assertIsInstance(roi_obj, ROIRect)
-        self.assertEqual(roi_obj.top, 20)
-        self.assertEqual(roi_obj.left, 30)
-        self.assertEqual(roi_obj.bottom, 40)
-        self.assertEqual(roi_obj.right, 50)
-        self.assertEqual(roi_obj.area, 400)
+        self.assertIsInstance(roi_obj_read, ROIRect)
+        self.assertEqual(roi_obj_read.top, 20)
+        self.assertEqual(roi_obj_read.left, 30)
+        self.assertEqual(roi_obj_read.bottom, 40)
+        self.assertEqual(roi_obj_read.right, 50)
+        self.assertEqual(roi_obj_read.area, 400)
+        self.assertEqual(roi_obj_read.name, 'test_name')
 
         os.remove(temp_path)
 

@@ -23,6 +23,10 @@ import os
 
 #  Base class for all ROI classes
 class ROIObject(object):
+
+    def __init__(self, name=None):
+        self.name = name
+
     def area(self):
         raise NotImplementedError('Area not implemented')
 
@@ -34,12 +38,13 @@ class ROIPolygon(ROIObject):
 class ROIRect(ROIObject):
     type = 'rect'
 
-    def __init__(self, top, left, bottom, right, arc=0):
+    def __init__(self, top, left, bottom, right, arc=0, *args, **kwargs):
         self.top = top
         self.left = left
         self.bottom = bottom
         self.right = right
         self.arc = arc
+        super(ROIRect, self).__init__(*args, **kwargs)
 
     @property
     def width(self):
@@ -68,11 +73,12 @@ class ROIOval(ROIObject):
 class ROILine(ROIObject):
     type = 'line'
 
-    def __init__(self, x1, y1, x2, y2):
+    def __init__(self, x1, y1, x2, y2, *args, **kwargs):
         self.x1 = x1
         self.y1 = y1
         self.x2 = x2
         self.y2 = y2
+        super(ROILine, self).__init__(*args, **kwargs)
 
     @property
     def area(self):
@@ -96,13 +102,22 @@ class ROINoRoi(ROIObject):
 
 
 class ROIFreehand(ROIObject):
-    def __init__(self, top, left, bottom, right, x_coords, y_coords):
+    type = 'freehand'
+
+    def __init__(self, top, left, x_coords, y_coords, *args, **kwargs):
         self.top = top
         self.left = left
-        self.bottom = bottom
-        self.right = right
-        self.x_coords = x_coords
-        self.y_coords = y_coords
+        self.x_coords = np.array(x_coords)
+        self.y_coords = np.array(y_coords)
+        super(ROIFreehand, self).__init__(*args, **kwargs)
+
+    @property
+    def bottom(self):
+        return self.y_coords.max() + self.top
+
+    @property
+    def right(self):
+        return self.x_coords.max() + self.left
 
     @property
     def width(self):
@@ -115,6 +130,9 @@ class ROIFreehand(ROIObject):
     @property
     def area(self):
         raise NotImplementedError('Area of freehand ROI is not implemented')
+
+    def __len__(self):
+        return len(self.x_coords)
 
 
 class ROITraces(ROIObject):
@@ -190,7 +208,7 @@ class ROIFileObject(object):
         ['ROI_PROPS_LENGTH', 'i', 44]
     ]
 
-    roi_types_rev = {'polygon': 0, 'rect': 1, 'oval': 2, 'line': 3, 'freeline': 4, 'polyline':5, 'no_roi': 6,
+    roi_types_rev = {'polygon': 0, 'rect': 1, 'oval': 2, 'line': 3, 'freeline': 4, 'polyline': 5, 'no_roi': 6,
                      'freehand': 7, 'traced': 8, 'angle': 9, 'point': 10}
 
     roi_types = {0: 'polygon', 1: 'rect', 2: 'oval', 3: 'line', 4: 'freeline', 5: 'polyline', 6: 'no_roi',
@@ -211,12 +229,10 @@ class ROIFileObject(object):
 class ROIEncoder(ROIFileObject):
 
     header2_offset = 64
-    name_offset = 128
 
-    def __init__(self, path, roi_obj, name=None):
+    def __init__(self, path, roi_obj):
         self.path = path
         self.roi_obj = roi_obj
-        self.name = name
 
         self._header1_dict = {e[0]: HeaderTuple(e[1], self._type_size(e[1]), e[2]) for e in self.header1_fields}
         self._header2_dict = {e[0]: HeaderTuple(e[1], self._type_size(e[1]), e[2]) for e in self.header2_fields}
@@ -224,7 +240,7 @@ class ROIEncoder(ROIFileObject):
     def write(self):
 
         self._write_var('MAGIC', 'Iout')
-        self._write_var('VERSION_OFFSET', 225)  # todo or 226??
+        self._write_var('VERSION_OFFSET', 226)
 
         roi_writer = getattr(self, '_write_roi_' + self.roi_obj.type)
         roi_writer()
@@ -248,7 +264,7 @@ class ROIEncoder(ROIFileObject):
         self._write_var('LEFT', self.roi_obj.left)
         self._write_var('BOTTOM', self.roi_obj.bottom)
         self._write_var('RIGHT', self.roi_obj.right)
-        self._write_var('HEADER2_OFFSET', 64)
+        self._write_var('HEADER2_OFFSET', self.header2_offset)
         self._write_var('NAME_OFFSET', self.name_offset)
         self._write_name()
 
@@ -268,7 +284,17 @@ class ROIEncoder(ROIFileObject):
         raise NotImplementedError('Writing roi type no roi is not implemented')
 
     def _write_roi_freehand(self):
-        raise NotImplementedError('Writing roi type freehand is not implemented')
+        self._write_var('TYPE', self.roi_types_rev[self.roi_obj.type])
+        self._write_var('TOP', self.roi_obj.top)
+        self._write_var('LEFT', self.roi_obj.left)
+        self._write_var('BOTTOM', self.roi_obj.bottom)
+        self._write_var('RIGHT', self.roi_obj.right)
+        self._write_var('N_COORDINATES', len(self.roi_obj))
+        self._write_var('HEADER2_OFFSET', self.header2_offset)
+        self._write_var('NAME_OFFSET', self.name_offset)
+
+        self._write_coords(np.concatenate((self.roi_obj.x_coords, self.roi_obj.y_coords)))
+        self._write_name()
 
     def _write_roi_traced(self):
         raise NotImplementedError('Writing roi type traced is not implemented')
@@ -294,14 +320,34 @@ class ROIEncoder(ROIFileObject):
         self.f_obj.write(binary)
 
     def _write_name(self):
-        if not self.name:
-            self.name = os.path.basename(
+        if self.roi_obj.name:
+            name = self.roi_obj.name
+        else:
+            name = os.path.basename(
                 os.path.splitext(self.path)[0]
             )
 
-        self._write_var('NAME_LENGTH', len(self.name))
+        self._write_var('NAME_LENGTH', len(name))
+        name = ''.join(i for j in zip(len(name)*' ', name) for i in j)  # interleave with with spaces
+
         self.f_obj.seek(self.name_offset)
-        self.f_obj.write(self.name)
+        self.f_obj.write(name)
+
+    def _write_coords(self, coords):
+        self.f_obj.seek(64)
+        binary = struct.pack('>' + str(len(coords)) + 'h', *coords)
+        self.f_obj.write(binary)
+
+    @property
+    def header2_offset(self):
+        if hasattr(self.roi_obj, 'x_coords'):
+            return 64 + len(self.roi_obj)*2*2  # Header1 size + 2 bytes per pair of coords
+        else:
+            return 64
+
+    @property
+    def name_offset(self):
+        return self.header2_offset + 64  # Name is after header2 which as size 64
 
 
 class ROIDecoder(ROIFileObject):
@@ -357,7 +403,9 @@ class ROIDecoder(ROIFileObject):
         except AttributeError:
             raise NotImplementedError('Reading roi type %s not implemented' % self.roi_types[self.header['TYPE']])
 
-        return roi_reader()
+        roi_obj = roi_reader()
+        roi_obj.name = self._get_name()
+        return roi_obj
 
     def _get_roi_polygon(self):
         raise NotImplementedError('Reading roi type polygon is not implemented')
@@ -410,12 +458,12 @@ class ROIDecoder(ROIFileObject):
 
         n_coords = self.header['N_COORDINATES']
         self.f_obj.seek(64)
-        binary = self.f_obj.read(2*n_coords*2)
+        binary = self.f_obj.read(2*2*n_coords)  # Two bytes per pair of coords
         coords = np.array(struct.unpack('>' + str(2*n_coords) + 'h', binary))
         x_coords = np.array(coords[:n_coords])
         y_coords = np.array(coords[n_coords:])
 
-        return ROIFreehand(top, left, bottom, right, x_coords, y_coords)
+        return ROIFreehand(top, left, x_coords, y_coords)
 
     def _get_roi_traced(self):
         raise NotImplementedError('Reading roi type traced is not implemented')
@@ -440,5 +488,17 @@ class ROIDecoder(ROIFileObject):
         binary = self.f_obj.read(var.size)
         return struct.unpack('>' + var.type, binary)[0]  # read header variable, big endian
 
+    def _get_name(self):
+        name_length = self._get_var('NAME_LENGTH')
+        name_offset = self._get_var('NAME_OFFSET')
+        self.f_obj.seek(name_offset)
+        binary = self.f_obj.read(2*name_length)
+
+        return ''.join(struct.unpack('>' + str(2*name_length) + 'c', binary)[1::2])
+
     def _set_header(self, var_name):
         self.header[var_name] = self._get_var(var_name)
+
+
+
+
