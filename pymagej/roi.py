@@ -68,9 +68,23 @@ class ROIRect(ROIObject):
             return self.width * self.height - ((4 - np.pi)*(self.arc/2.)**2)
 
 
-
 class ROIOval(ROIObject):
     type = 'oval'
+
+    def __init__(self, top, left, bottom, right, *args, **kwargs):
+        self.top = top
+        self.left = left
+        self.bottom = bottom
+        self.right = right
+        super(ROIOval, self).__init__(*args, **kwargs)
+    #todo add x, y properties
+    @property
+    def width(self):
+        return self.right - self.left
+
+    @property
+    def height(self):
+        return self.bottom - self.top
 
     @property
     def area(self):
@@ -379,10 +393,6 @@ class ROIDecoder(ROIFileObject):
         for h in to_read_h1 + to_read_h2:
             self._set_header(h)
 
-        for key in self.header:
-            print key
-            print self.header[key]
-
     def read_header(self):
         if self._get_var('MAGIC') != 'Iout':
             raise IOError('Invalid ROI file, magic number mismatch')
@@ -435,8 +445,7 @@ class ROIDecoder(ROIFileObject):
             self._set_header(p)
 
         top, left, bottom, right = [self.header[p] for p in params]
-
-        raise NotImplementedError('Reading roi type oval is not implemented')
+        return ROIOval(top, left, bottom, right)
 
     def _get_roi_line(self):
         params = ['X1', 'Y1', 'X2', 'Y2']
@@ -512,8 +521,7 @@ if __name__ == '__main__':
     import utils
     utils.set_wkdir('/pymagej')
 
-    with ROIDecoder('rect.roi') as roi:
+    with ROIDecoder('oval.roi') as roi:
         roi_obj = roi.get_roi()
 
-    print roi_obj.arc
 

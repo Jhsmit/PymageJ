@@ -15,7 +15,7 @@ import unittest
 import os
 import numpy as np
 
-from pymagej.roi import ROIEncoder, ROIDecoder, ROIRect, ROIFreehand
+from pymagej.roi import ROIEncoder, ROIDecoder, ROIRect, ROIFreehand, ROIOval
 
 
 class MyTestCase(unittest.TestCase):
@@ -64,6 +64,9 @@ class ROITest(MyTestCase):
         self.assertAlmostEqual(roi_obj.area, 1064.15926536)
         self.assertEqual(roi_obj.name, 'rounded_rectangle')
 
+    def test_encoder_rounded_rect(self):
+        pass
+
     def test_decoder_rect(self):
         with ROIDecoder('rect.roi') as roi:
             roi_obj = roi.get_roi()
@@ -95,6 +98,17 @@ class ROITest(MyTestCase):
 
         os.remove(temp_path)
 
+    def test_decoder_oval(self):
+        with ROIDecoder('oval.roi') as roi:
+            roi_obj = roi.get_roi()
+        self.assertIsInstance(roi_obj, ROIOval)
+        self.assertEqual(roi_obj.width, 61)
+        self.assertEqual(roi_obj.height, 33)
+        self.assertEqual(roi_obj.left, 143)
+        self.assertEqual(roi_obj.bottom, 248)
+        self.assertEqual(roi_obj.right, 204)
+       # self.assertEqual(roi_obj.area, 8325) notimplemented
+        self.assertEqual(roi_obj.name, 'oval')
 
 if __name__ == '__main__':
     unittest.main()
