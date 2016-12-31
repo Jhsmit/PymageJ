@@ -18,6 +18,8 @@ from collections import namedtuple
 import os
 import warnings
 
+#todo figure out if x,y coords should be relative or absolute!
+
 # http://rsb.info.nih.gov/ij/developer/source/ij/io/RoiDecoder.java.html
 # http://rsb.info.nih.gov/ij/developer/source/ij/io/RoiEncoder.java.html
 
@@ -34,6 +36,24 @@ class ROIObject(object):
 
 class ROIPolygon(ROIObject):
     type = 'polygon'
+
+
+    def __init__(self, top, left, bottom, right, x_coords, y_coords, *args, **kwargs):
+        self.top = top
+        self.left = left
+        self.bottom = bottom
+        self.right = right
+        self.x_coords = x_coords
+        self.y_coords = y_coords
+        super(ROIPolygon, self).__init__(*args, **kwargs)
+
+    @property
+    def width(self):
+        return self.x_coords.max() - self.x_coords.min() + 1
+
+    @property
+    def height(self):
+        return self.y_coords.max() - self.y_coords.min() + 1
 
     @property
     def area(self):
@@ -155,11 +175,29 @@ class ROIFreehand(ROIObject):
     def __len__(self):
         return len(self.x_coords)
 
+class ROITraced(ROIObject):
+    type = 'traced'
 
-class ROITraces(ROIObject):
+    def __init__(self, top, left, bottom, right, x_coords, y_coords, *args, **kwargs):
+        self.top = top
+        self.left = left
+        self.bottom = bottom
+        self.right = right
+        self.x_coords = x_coords
+        self.y_coords = y_coords
+        super(ROITraced, self).__init__(*args, **kwargs)
+
+    @property
+    def width(self):
+        return self.x_coords.max() - self.x_coords.min() + 1
+
+    @property
+    def height(self):
+        return self.y_coords.max() - self.y_coords.min() + 1
+
     @property
     def area(self):
-        return 0
+        raise NotImplementedError('Area of traced ROI is not implemented')
 
 
 class ROIAngle(ROIObject):
@@ -233,7 +271,7 @@ class ROIFileObject(object):
                      'freehand': 7, 'traced': 8, 'angle': 9, 'point': 10}
 
     roi_types = {0: 'polygon', 1: 'rect', 2: 'oval', 3: 'line', 4: 'freeline', 5: 'polyline', 6: 'no_roi',
-                 7: 'freehand', 8: 'traces', 9: 'angle', 10: 'point'}
+                 7: 'freehand', 8: 'traced', 9: 'angle', 10: 'point'}
 
     @staticmethod
     def _type_size(_type):
@@ -250,10 +288,12 @@ class ROIFileObject(object):
 class ROIEncoder(ROIFileObject):
 
     header2_offset = 64
+    name_offset = 128
 
-    def __init__(self, path, roi_obj):
+    def __init__(self, path, roi_obj, name=None):
         self.path = path
         self.roi_obj = roi_obj
+        self.name = name
 
         self._header1_dict = {e[0]: HeaderTuple(e[1], self._type_size(e[1]), e[2]) for e in self.header1_fields}
         self._header2_dict = {e[0]: HeaderTuple(e[1], self._type_size(e[1]), e[2]) for e in self.header2_fields}
@@ -261,7 +301,7 @@ class ROIEncoder(ROIFileObject):
     def write(self):
 
         self._write_var('MAGIC', 'Iout')
-        self._write_var('VERSION_OFFSET', 226)
+        self._write_var('VERSION_OFFSET', 226) # todo or 225?
 
         roi_writer = getattr(self, '_write_roi_' + self.roi_obj.type)
         roi_writer()
@@ -379,7 +419,7 @@ class ROIDecoder(ROIFileObject):
         self._header2_dict = {e[0]: HeaderTuple(e[1], self._type_size(e[1]), e[2]) for e in self.header2_fields}
 
     def __enter__(self):
-        self.f_obj = open(self.roi_path, 'rb')
+        self.f_obj = open(self.roi_path, 'rb') #todo check r r
         return self
 
     def __exit__(self, type, value, traceback):
@@ -425,7 +465,20 @@ class ROIDecoder(ROIFileObject):
         return roi_obj
 
     def _get_roi_polygon(self):
-        raise NotImplementedError('Reading roi type polygon is not implemented')
+        params = ['TOP', 'LEFT', 'BOTTOM', 'RIGHT']
+        for p in params:
+            self._set_header(p)
+
+        top, left, bottom, right = [self.header[p] for p in params]
+
+        n_coords = self.header['N_COORDINATES']
+        self.f_obj.seek(64)
+        binary = self.f_obj.read(2*n_coords*2)
+        coords = np.array(struct.unpack('>' + str(2*n_coords) + 'h', binary))
+        x_coords = np.array(coords[:n_coords])
+        y_coords = np.array(coords[n_coords:])
+
+        return ROIPolygon(top, left, bottom, right, x_coords, y_coords)
 
     def _get_roi_rect(self):
         self._set_header('ROUNDED_RECT_ARC_SIZE')
@@ -479,10 +532,23 @@ class ROIDecoder(ROIFileObject):
         x_coords = np.array(coords[:n_coords])
         y_coords = np.array(coords[n_coords:])
 
-        return ROIFreehand(top, left, x_coords, y_coords)
+        return ROIFreehand(top, left, x_coords, y_coords) #todo removed bottom, right, why?
 
     def _get_roi_traced(self):
-        raise NotImplementedError('Reading roi type traced is not implemented')
+        params = ['TOP', 'LEFT', 'BOTTOM', 'RIGHT']
+        for p in params:
+            self._set_header(p)
+
+        top, left, bottom, right = [self.header[p] for p in params]
+
+        n_coords = self.header['N_COORDINATES']
+        self.f_obj.seek(64)
+        binary = self.f_obj.read(2*n_coords*2)
+        coords = np.array(struct.unpack('>' + str(2*n_coords) + 'h', binary))
+        x_coords = np.array(coords[:n_coords])
+        y_coords = np.array(coords[n_coords:])
+
+        return ROITraced(top, left, bottom, right, x_coords, y_coords)
 
     def _get_roi_angle(self):
         raise NotImplementedError('Reading roi type angle is not implemented')
@@ -516,12 +582,40 @@ class ROIDecoder(ROIFileObject):
         self.header[var_name] = self._get_var(var_name)
 
 
-if __name__ == '__main__':
+# PM code below
 
-    import utils
-    utils.set_wkdir('/pymagej')
+import zipfile
 
-    with ROIDecoder('oval.roi') as roi:
-        roi_obj = roi.get_roi()
+
+def read_imagej_roi_zip(filename, dict_format = True):
+
+    roi_list = []
+    with zipfile.ZipFile(filename) as zf:
+        for name in zf.namelist():
+            roi_path = zf.extract(name, '/tmp')
+            roi = read_roi(roi_path)
+            if roi is None:
+                continue
+
+            label = str(name).rstrip('.roi')
+            if dict_format:
+                roi_list.append({'label': label, 'polygons': roi.T})
+            else:
+                roi_list.append([label, roi])
+        return roi_list
+
+
+def read_roi(roi_path):
+    try:
+        with ROIDecoder(roi_path) as roi:
+            r = roi.get_roi()
+            r.x_coords = r.left + r.x_coords
+            r.y_coords = r.top + r.y_coords
+            return np.array([r.x_coords, r.y_coords])
+
+    except Exception as other:
+            print(roi_file, other)
+            return None
+
 
 
