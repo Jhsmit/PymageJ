@@ -18,7 +18,7 @@ from collections import namedtuple
 import os
 import warnings
 
-#todo figure out if x,y coords should be relative or absolute!
+#todo figure out if x,y coords should be relative or absolute! -> relative
 
 # http://rsb.info.nih.gov/ij/developer/source/ij/io/RoiDecoder.java.html
 # http://rsb.info.nih.gov/ij/developer/source/ij/io/RoiEncoder.java.html
@@ -37,15 +37,20 @@ class ROIObject(object):
 class ROIPolygon(ROIObject):
     type = 'polygon'
 
-
-    def __init__(self, top, left, bottom, right, x_coords, y_coords, *args, **kwargs):
+    def __init__(self, top, left, x_coords, y_coords, *args, **kwargs):
         self.top = top
         self.left = left
-        self.bottom = bottom
-        self.right = right
-        self.x_coords = x_coords
-        self.y_coords = y_coords
+        self.x_coords = np.array(x_coords)
+        self.y_coords = np.array(y_coords)
         super(ROIPolygon, self).__init__(*args, **kwargs)
+
+    @property
+    def bottom(self):
+        return self.y_coords.max() + self.top
+
+    @property
+    def right(self):
+        return self.x_coords.max() + self.left
 
     @property
     def width(self):
@@ -58,6 +63,9 @@ class ROIPolygon(ROIObject):
     @property
     def area(self):
         raise NotImplementedError('Area of polygon ROI is not implemented')
+
+    def __len__(self):
+        return len(self.x_coords)
 
 
 class ROIRect(ROIObject):
@@ -126,8 +134,23 @@ class ROILine(ROIObject):
         return 0
 
 
+class ROIFreeLine(ROIObject):
+    type = 'freeline'
+
+    def __init__(self, *args, **kwargs):
+        super(ROIFreeLine, self).__init__(*args, **kwargs)
+        raise NotImplementedError("Freeline ROI not implemented")
+
+    @property
+    def area(self):
+        raise NotImplementedError("Freeline area not implemented")
+
+
 class ROIPolyline(ROIObject):
     type = 'polyline'
+
+    def __init__(self, *args, **kwargs):
+        super(ROIPolyline, self).__init__(*args, **kwargs)
 
     @property
     def area(self):
@@ -174,6 +197,7 @@ class ROIFreehand(ROIObject):
 
     def __len__(self):
         return len(self.x_coords)
+
 
 class ROITraced(ROIObject):
     type = 'traced'
@@ -316,8 +340,19 @@ class ROIEncoder(ROIFileObject):
         self.f_obj.close()
         return False
 
-    def _get_roi_polygon(self):
-        raise NotImplementedError('Writing roi type polygon is not implemented')
+    def _write_roi_polygon(self):
+        self._write_var('TYPE', self.roi_types_rev[self.roi_obj.type])
+        self._write_var('TOP', self.roi_obj.top)
+        self._write_var('LEFT', self.roi_obj.left)
+        self._write_var('BOTTOM', self.roi_obj.bottom)
+        self._write_var('RIGHT', self.roi_obj.right)
+        self._write_var('N_COORDINATES', len(self.roi_obj))
+        self._write_var('HEADER2_OFFSET', self.header2_offset)
+        self._write_var('NAME_OFFSET', self.name_offset)
+
+        self._write_coords(np.concatenate((self.roi_obj.x_coords, self.roi_obj.y_coords)))
+        self._write_name()
+
 
     def _write_roi_rect(self):
         self._write_var('TYPE', self.roi_types_rev[self.roi_obj.type])
@@ -478,7 +513,7 @@ class ROIDecoder(ROIFileObject):
         x_coords = np.array(coords[:n_coords])
         y_coords = np.array(coords[n_coords:])
 
-        return ROIPolygon(top, left, bottom, right, x_coords, y_coords)
+        return ROIPolygon(top, left, x_coords, y_coords)
 
     def _get_roi_rect(self):
         self._set_header('ROUNDED_RECT_ARC_SIZE')
