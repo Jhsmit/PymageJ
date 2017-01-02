@@ -15,7 +15,8 @@ import unittest
 import os
 import numpy as np
 
-from pymagej.roi import ROIEncoder, ROIDecoder, ROIRect, ROIFreehand, ROIOval
+from pymagej.roi import ROIEncoder, ROIDecoder, ROIPolygon, ROIRect, ROIOval, ROILine, ROIFreeLine, ROIPolyline, \
+    ROINoRoi, ROIFreehand, ROITraced, ROIAngle, ROIPoint
 
 
 class MyTestCase(unittest.TestCase):
@@ -24,6 +25,44 @@ class MyTestCase(unittest.TestCase):
 
 
 class ROITest(MyTestCase):
+
+    #todo top appears to be 48 in ImageJ, different coordinate system?
+    #is it only top?
+    def test_decoder_polygon(self):
+        with ROIDecoder('polygon.roi') as roi:
+            roi_obj = roi.get_roi()
+        self.assertIsInstance(roi_obj, ROIPolygon)
+        self.assertEqual(roi_obj.top, 49)
+        self.assertEqual(roi_obj.left, 120)
+        self.assertEqual(roi_obj.bottom, 137)
+        self.assertEqual(roi_obj.right, 228)
+        print(roi_obj.width)
+        print(roi_obj.left - roi_obj.right)
+        #todo figure out this difference
+        self.assertEqual(len(roi_obj.x_coords), 9)
+        self.assertEqual(len(roi_obj.y_coords), 9)
+        self.assertArrayEqual(roi_obj.x_coords, np.array([29, 19, 55, 89, 93, 107, 108, 0, 4]))
+        self.assertArrayEqual(roi_obj.y_coords, np.array([56, 88, 86, 37, 76, 70,  0, 17, 46]))
+
+    def test_encoder_polygon(self):
+        x_coords = [1, 2, 3]
+        y_coords = [4, 5, 6]
+        roi_obj = ROIPolygon(20, 40, x_coords, y_coords, name='polygon_test')
+        temp_path = 'temp_file.roi'
+
+        with ROIEncoder(temp_path, roi_obj) as roi:
+            roi.write()
+
+        with ROIDecoder(temp_path) as roi:
+            roi_obj_read = roi.get_roi()
+
+        self.assertIsInstance(roi_obj_read, ROIPolygon)
+        self.assertEqual(roi_obj_read.top, 20)
+        self.assertEqual(roi_obj_read.left, 40)
+        self.assertArrayEqual(roi_obj_read.x_coords, x_coords)
+        self.assertArrayEqual(roi_obj_read.y_coords, y_coords)
+        self.assertEqual(roi_obj_read.name, 'polygon_test')
+
     def test_decoder_freehand(self):
         with ROIDecoder('freehand.roi') as roi:
             roi_obj = roi.get_roi()
