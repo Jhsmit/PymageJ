@@ -23,6 +23,8 @@ import warnings
 # http://rsb.info.nih.gov/ij/developer/source/ij/io/RoiDecoder.java.html
 # http://rsb.info.nih.gov/ij/developer/source/ij/io/RoiEncoder.java.html
 
+# clippers polynomial?
+
 
 #  Base class for all ROI classes
 class ROIObject(object):
@@ -105,7 +107,7 @@ class ROIOval(ROIObject):
         self.bottom = bottom
         self.right = right
         super(ROIOval, self).__init__(*args, **kwargs)
-    #todo add x, y properties
+
     @property
     def width(self):
         return self.right - self.left
@@ -116,7 +118,8 @@ class ROIOval(ROIObject):
 
     @property
     def area(self):
-        raise NotImplementedError('Area of oval ROI is not implemented')
+        warnings.warn(r"Oval area value differs from ImageJ value as it first 'smooths' to pixels")
+        return self.width*self.height*np.pi*0.25
 
 
 class ROILine(ROIObject):
@@ -137,24 +140,71 @@ class ROILine(ROIObject):
 class ROIFreeLine(ROIObject):
     type = 'freeline'
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, top, left, x_coords, y_coords, *args, **kwargs):
+        assert (len(x_coords) == len(y_coords))
+        self.top = top
+        self.left = left
+        self.x_coords = np.array(x_coords)
+        self.y_coords = np.array(y_coords)
         super(ROIFreeLine, self).__init__(*args, **kwargs)
-        raise NotImplementedError("Freeline ROI not implemented")
+
+    @property
+    def bottom(self):
+        return self.y_coords.max() + self.top
+
+    @property
+    def right(self):
+        return self.x_coords.max() + self.left
+
+    @property
+    def width(self):
+        return self.x_coords.max() - self.x_coords.min() + 1
+
+    @property
+    def height(self):
+        return self.y_coords.max() - self.y_coords.min() + 1
 
     @property
     def area(self):
         raise NotImplementedError("Freeline area not implemented")
 
+    def __len__(self):
+        return len(self.x_coords)
+
 
 class ROIPolyline(ROIObject):
     type = 'polyline'
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, top, left, x_coords, y_coords, *args, **kwargs):
+        assert(len(x_coords) == len(y_coords))
+        self.top = top
+        self.left = left
+        self.x_coords = np.array(x_coords)
+        self.y_coords = np.array(y_coords)
         super(ROIPolyline, self).__init__(*args, **kwargs)
 
     @property
+    def bottom(self):
+        return self.y_coords.max() + self.top
+
+    @property
+    def right(self):
+        return self.x_coords.max() + self.left
+
+    @property
+    def width(self):
+        return self.x_coords.max() - self.x_coords.min() + 1
+
+    @property
+    def height(self):
+        return self.y_coords.max() - self.y_coords.min() + 1
+
+    @property
     def area(self):
-        return 0
+        raise NotImplementedError("Freeline area not implemented")
+
+    def __len__(self):
+        return len(self.x_coords)
 
 
 class ROINoRoi(ROIObject):
@@ -353,7 +403,6 @@ class ROIEncoder(ROIFileObject):
         self._write_coords(np.concatenate((self.roi_obj.x_coords, self.roi_obj.y_coords)))
         self._write_name()
 
-
     def _write_roi_rect(self):
         self._write_var('TYPE', self.roi_types_rev[self.roi_obj.type])
         self._write_var('TOP', self.roi_obj.top)
@@ -365,16 +414,51 @@ class ROIEncoder(ROIFileObject):
         self._write_name()
 
     def _write_roi_oval(self):
-        raise NotImplementedError('Writing roi type oval is not implemented')
+        self._write_var('TYPE', self.roi_types_rev[self.roi_obj.type])
+        self._write_var('TOP', self.roi_obj.top)
+        self._write_var('LEFT', self.roi_obj.left)
+        self._write_var('BOTTOM', self.roi_obj.bottom)
+        self._write_var('RIGHT', self.roi_obj.right)
+        self._write_var('HEADER2_OFFSET', self.header2_offset)
+        self._write_var('NAME_OFFSET', self.name_offset)
+        self._write_name()
 
     def _write_roi_line(self):
-        raise NotImplementedError('Writing roi type line is not implemented')
+        self._write_var('TYPE', self.roi_types_rev[self.roi_obj.type])
+        print(getattr(self.roi_obj, 'x1'))
+
+        for var_name, attr_name in zip(['X1', 'Y1', 'X2', 'Y2'], ['x1', 'y1', 'x2', 'y2']):
+            self._write_var(var_name, getattr(self.roi_obj, attr_name))
+
+        self._write_var('HEADER2_OFFSET', self.header2_offset)
+        self._write_var('NAME_OFFSET', self.name_offset)
+        self._write_name()
 
     def _write_roi_freeline(self):
-        raise NotImplementedError('Writing roi type freeline is not implemented')
+        self._write_var('TYPE', self.roi_types_rev[self.roi_obj.type])
+        self._write_var('TOP', self.roi_obj.top)
+        self._write_var('LEFT', self.roi_obj.left)
+        self._write_var('BOTTOM', self.roi_obj.bottom)
+        self._write_var('RIGHT', self.roi_obj.right)
+        self._write_var('N_COORDINATES', len(self.roi_obj))
+        self._write_var('HEADER2_OFFSET', self.header2_offset)
+        self._write_var('NAME_OFFSET', self.name_offset)
+
+        self._write_coords(np.concatenate((self.roi_obj.x_coords, self.roi_obj.y_coords)))
+        self._write_name()
 
     def _write_roi_polyline(self):
-        raise NotImplementedError('Writing roi type polyline is not implemented')
+        self._write_var('TYPE', self.roi_types_rev[self.roi_obj.type])
+        self._write_var('TOP', self.roi_obj.top)
+        self._write_var('LEFT', self.roi_obj.left)
+        self._write_var('BOTTOM', self.roi_obj.bottom)
+        self._write_var('RIGHT', self.roi_obj.right)
+        self._write_var('N_COORDINATES', len(self.roi_obj))
+        self._write_var('HEADER2_OFFSET', self.header2_offset)
+        self._write_var('NAME_OFFSET', self.name_offset)
+
+        self._write_coords(np.concatenate((self.roi_obj.x_coords, self.roi_obj.y_coords)))
+        self._write_name()
 
     def _write_roi_no_roi(self):
         raise NotImplementedError('Writing roi type no roi is not implemented')
@@ -540,15 +624,40 @@ class ROIDecoder(ROIFileObject):
         for p in params:
             self._set_header(p)
 
-        x1, y1, x2, y2 = [self.header[p] for p in params]
-
-        return ROILine(x1, y1, x2, y2)
+        return ROILine(*[self.header[p] for p in params])
 
     def _get_roi_freeline(self):
-        raise NotImplementedError('Reading roi type freeline is not implemented')
+        params = ['TOP', 'LEFT', 'BOTTOM', 'RIGHT']
+        for p in params:
+            self._set_header(p)
+
+        top, left, bottom, right = [self.header[p] for p in params]
+
+        n_coords = self.header['N_COORDINATES']
+        self.f_obj.seek(64)
+        binary = self.f_obj.read(2*2*n_coords)  # Two bytes per pair of coords
+        coords = np.array(struct.unpack('>' + str(2*n_coords) + 'h', binary))
+        x_coords = np.array(coords[:n_coords])
+        y_coords = np.array(coords[n_coords:])
+
+        #todo read coord function
+        return ROIFreeLine(top, left, x_coords, y_coords)
 
     def _get_roi_polyline(self):
-        raise NotImplementedError('Reading roi type polyline is not implemented')
+        params = ['TOP', 'LEFT', 'BOTTOM', 'RIGHT']
+        for p in params:
+            self._set_header(p)
+
+        top, left, bottom, right = [self.header[p] for p in params]
+
+        n_coords = self.header['N_COORDINATES']
+        self.f_obj.seek(64)
+        binary = self.f_obj.read(2*2*n_coords)  # Two bytes per pair of coords
+        coords = np.array(struct.unpack('>' + str(2*n_coords) + 'h', binary))
+        x_coords = np.array(coords[:n_coords])
+        y_coords = np.array(coords[n_coords:])
+
+        return ROIPolyline(top, left, x_coords, y_coords)
 
     def _get_roi_no_roi(self):
         raise NotImplementedError('Reading roi type no roi is not implemented')
