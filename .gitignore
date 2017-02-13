@@ -16,6 +16,7 @@ eggs/
 .eggs/
 lib/
 lib64/
+MANIFEST
 parts/
 sdist/
 var/
