@@ -251,7 +251,58 @@ class ROITest(MyTestCase):
     def test_encoder_rounded_rect(self):
         pass
 
+    def test_decoder_header(self):
+        with ROIDecoder('rect_slice4.roi') as roi:
+            roi_obj = roi.get_roi()
+        self.assertIsInstance(roi_obj, ROIRect)
+        self.assertEqual(roi_obj.top, 67)
+        self.assertEqual(roi_obj.left, 124)
+        self.assertEqual(roi_obj.bottom, 130)
+        self.assertEqual(roi_obj.right, 187)
+        self.assertEqual(roi_obj.name, 'rect_slice4')
+        self.assertEqual(roi_obj.header['POSITION'] , 4)
 
+    def test_encoder_header(self):
+        roi_obj_write = ROIRect(20, 30, 40, 50, name='test_name_header')
+        temp_path = 'temp_file.roi'
+        roi_obj_write.header = {
+            'C_POSITION': 1,
+            'Z_POSITION': 2,
+            'T_POSITION': 3,
+            'POSITION': 4
+        }
+
+        with ROIEncoder(temp_path, roi_obj_write) as roi:
+            roi.write()
+
+        with ROIDecoder(temp_path) as roi:
+            roi_obj_read = roi.get_roi()
+
+        self.assertIsInstance(roi_obj_read, ROIRect)
+        self.assertEqual(roi_obj_read.top, 20)
+        self.assertEqual(roi_obj_read.left, 30)
+        self.assertEqual(roi_obj_read.bottom, 40)
+        self.assertEqual(roi_obj_read.right, 50)
+        self.assertEqual(roi_obj_read.name, 'test_name_header')
+        #todo name not properly displayed if loaded into imagej (issue)
+
+        self.assertEqual(roi_obj_read.header['C_POSITION'], 1)
+        self.assertEqual(roi_obj_read.header['Z_POSITION'], 2)
+        self.assertEqual(roi_obj_read.header['T_POSITION'], 3)
+        self.assertEqual(roi_obj_read.header['POSITION'], 4)
+
+    def test_encoder_header_imagej(self):
+        roi_obj_write = ROIRect(20, 30, 40, 50, name='test_name_header')
+        temp_path = 'temp_zpos_imagej.roi'
+        roi_obj_write.header = {
+            'Z_POSITION': 2,
+        }
+
+        with ROIEncoder(temp_path, roi_obj_write) as roi:
+            roi.write()
+
+
+        #os.remove(temp_path)
 
 if __name__ == '__main__':
     unittest.main()

@@ -28,6 +28,7 @@ import warnings
 
 #  Base class for all ROI classes
 class ROIObject(object):
+    header = {} # todo overwrite get/set and print warnings when not supported by imagej
 
     def __init__(self, name=None):
         self.name = name
@@ -373,9 +374,10 @@ class ROIEncoder(ROIFileObject):
         self._header2_dict = {e[0]: HeaderTuple(e[1], self._type_size(e[1]), e[2]) for e in self.header2_fields}
 
     def write(self):
-
         self._write_var('MAGIC', 'Iout')
         self._write_var('VERSION_OFFSET', 226) # todo or 225?
+        for key, val in self.roi_obj.header.items():
+            self._write_var(key, val)
 
         roi_writer = getattr(self, '_write_roi_' + self.roi_obj.type)
         roi_writer()
@@ -425,7 +427,6 @@ class ROIEncoder(ROIFileObject):
 
     def _write_roi_line(self):
         self._write_var('TYPE', self.roi_types_rev[self.roi_obj.type])
-        print(getattr(self.roi_obj, 'x1'))
 
         for var_name, attr_name in zip(['X1', 'Y1', 'X2', 'Y2'], ['x1', 'y1', 'x2', 'y2']):
             self._write_var(var_name, getattr(self.roi_obj, attr_name))
@@ -486,6 +487,7 @@ class ROIEncoder(ROIFileObject):
         raise NotImplementedError('Writing roi type point is not implemented')
 
     def _write_var(self, var_name, value):
+        #todo typechecking of var values
         if var_name in self._header1_dict:
             var = self._header1_dict[var_name]
             offset = var.offset
@@ -556,16 +558,19 @@ class ROIDecoder(ROIFileObject):
         if self._get_var('MAGIC') != 'Iout':
             raise IOError('Invalid ROI file, magic number mismatch')
 
-        to_read_h1 = ['VERSION_OFFSET', 'TYPE', 'SUBTYPE', 'TOP', 'LEFT', 'BOTTOM', 'RIGHT', 'N_COORDINATES',
-                      'STROKE_WIDTH', 'SHAPE_ROI_SIZE', 'STROKE_COLOR', 'FILL_COLOR', 'SUBTYPE', 'OPTIONS', 'POSITION',
-                      'HEADER2_OFFSET']
+       # to_read_h1 = ['VERSION_OFFSET', 'TYPE', 'SUBTYPE', 'TOP', 'LEFT', 'BOTTOM', 'RIGHT', 'N_COORDINATES',
+       #               'STROKE_WIDTH', 'SHAPE_ROI_SIZE', 'STROKE_COLOR', 'FILL_COLOR', 'SUBTYPE', 'OPTIONS', 'POSITION',
+       #               'HEADER2_OFFSET']
 
+        to_read_h1 = [e[0] for e in self.header1_fields]  # Read everything in header2
         to_read_h2 = [e[0] for e in self.header2_fields]  # Read everything in header2
 
+        #todo why is this here and is it still nessecary
         set_zero = ['OVERLAY_LABEL_COLOR', 'OVERLAY_FONT_SIZE', 'IMAGE_OPACITY']
 
         for h in to_read_h1 + to_read_h2:
-            self._set_header(h)
+            self.header[h] = self._get_var(h)
+#            self._set_header(h)
 
         for h in set_zero:
             self.header[h] = 0
@@ -581,6 +586,7 @@ class ROIDecoder(ROIFileObject):
 
         roi_obj = roi_reader()
         roi_obj.name = self._get_name()
+        roi_obj.header = self.header
         return roi_obj
 
     def _get_roi_polygon(self):
@@ -700,6 +706,7 @@ class ROIDecoder(ROIFileObject):
     def _get_roi_point(self):
         raise NotImplementedError('Reading roi type point is not implemented')
 
+    #todo make public and docstring
     def _get_var(self, var_name):
         if var_name in self._header1_dict:
             var = self._header1_dict[var_name]
