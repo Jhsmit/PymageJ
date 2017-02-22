@@ -374,7 +374,7 @@ class ROIEncoder(ROIFileObject):
         self._header2_dict = {e[0]: HeaderTuple(e[1], self._type_size(e[1]), e[2]) for e in self.header2_fields}
 
     def write(self):
-        self._write_var('MAGIC', 'Iout')
+        self._write_var('MAGIC', b'Iout')
         self._write_var('VERSION_OFFSET', 226) # todo or 225?
         for key, val in self.roi_obj.header.items():
             self._write_var(key, val)
@@ -384,7 +384,7 @@ class ROIEncoder(ROIFileObject):
 
     def __enter__(self):
         self.f_obj = open(self.path, 'wb')
-        pad = struct.pack('128b', *np.zeros(128))
+        pad = struct.pack('128b', *[0]*128)#*np.zeros(128))
         self.f_obj.write(pad)
         return self
 
@@ -513,7 +513,7 @@ class ROIEncoder(ROIFileObject):
         name = ''.join(i for j in zip(len(name)*' ', name) for i in j)  # interleave with with spaces
 
         self.f_obj.seek(self.name_offset)
-        self.f_obj.write(name)
+        self.f_obj.write(name.encode())
 
     def _write_coords(self, coords):
         self.f_obj.seek(64)
@@ -555,7 +555,7 @@ class ROIDecoder(ROIFileObject):
             self._set_header(h)
 
     def read_header(self):
-        if self._get_var('MAGIC') != 'Iout':
+        if str(self._get_var('MAGIC')) != str(b'Iout'):
             raise IOError('Invalid ROI file, magic number mismatch')
 
        # to_read_h1 = ['VERSION_OFFSET', 'TYPE', 'SUBTYPE', 'TOP', 'LEFT', 'BOTTOM', 'RIGHT', 'N_COORDINATES',
@@ -727,7 +727,7 @@ class ROIDecoder(ROIFileObject):
         self.f_obj.seek(name_offset)
         binary = self.f_obj.read(2*name_length)
 
-        return ''.join(struct.unpack('>' + str(2*name_length) + 'c', binary)[1::2])
+        return b''.join(struct.unpack('>' + str(2*name_length) + 'c', binary)[1::2]).decode("utf-8")
 
     def _set_header(self, var_name):
         self.header[var_name] = self._get_var(var_name)

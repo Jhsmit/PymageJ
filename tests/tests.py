@@ -301,7 +301,6 @@ class ROITest(MyTestCase):
         with ROIEncoder(temp_path, roi_obj_write) as roi:
             roi.write()
 
-
         #os.remove(temp_path)
 
 if __name__ == '__main__':
