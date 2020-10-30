@@ -330,7 +330,7 @@ class ROIDecoder(ROIFileObject):
             print(self.header[key])
 
     def read_header(self):
-        if self._get_var('MAGIC') != 'Iout':
+        if self._get_var('MAGIC') != b'Iout':
             raise IOError('Invalid ROI file, magic number mismatch')
 
         to_read_h1 = ['VERSION_OFFSET', 'TYPE', 'SUBTYPE', 'TOP', 'LEFT', 'BOTTOM', 'RIGHT', 'N_COORDINATES',
