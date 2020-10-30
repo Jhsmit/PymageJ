@@ -190,7 +190,7 @@ class ROIFileObject(object):
         ['ROI_PROPS_LENGTH', 'i', 44]
     ]
 
-    roi_types_rev = {'polygon': 0, 'rect': 1, 'oval': 2, 'line': 3, 'freeline': 4, 'polyline':5, 'no_roi': 6,
+    roi_types_rev = {'polygon': 0, 'rect': 1, 'oval': 2, 'line': 3, 'freeline': 4, 'polyline': 5, 'no_roi': 6,
                      'freehand': 7, 'traced': 8, 'angle': 9, 'point': 10}
 
     roi_types = {0: 'polygon', 1: 'rect', 2: 'oval', 3: 'line', 4: 'freeline', 5: 'polyline', 6: 'no_roi',
@@ -199,9 +199,9 @@ class ROIFileObject(object):
     @staticmethod
     def _type_size(_type):
         sizes = {'h': 2, 'f': 4, 'i': 4, 's': 1, 'b': 1}
-        char = re.findall('\D', _type)[0]
+        char = re.findall('\\D', _type)[0]
         size = sizes[char]
-        number = re.findall('\d', _type)
+        number = re.findall('\\d', _type)
 
         if number:
             size *= int(number[0])
@@ -209,7 +209,6 @@ class ROIFileObject(object):
 
 
 class ROIEncoder(ROIFileObject):
-
     header2_offset = 64
     name_offset = 128
 
