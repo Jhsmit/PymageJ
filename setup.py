@@ -5,9 +5,8 @@ setup(
     version='0.1',
     description='Python tools for ImageJ',
     author='Jochem Smit',
-    author_email='j.h.smit@rug.nl',
+    author_email='jhsmit@mgail.com',
     url='https://github.com/Jhsmit/PymageJ/',
-    download_url='https://github.com/Jhsmit/PymageJ/tarball/0.1',
     packages=['PymageJ'],
     license='GNU',
     classifiers=[
@@ -15,7 +14,7 @@ setup(
         'Intended Audience :: Science/Research',
         'Topic :: Scientific/Engineering',
         'License :: OSI Approved :: GNU General Public License v2 (GPLv2)',
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
     ],
     keywords='ImageJ ROI',
 )
