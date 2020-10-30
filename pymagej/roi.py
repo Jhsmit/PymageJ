@@ -222,7 +222,7 @@ class ROIEncoder(ROIFileObject):
 
     def write(self):
 
-        self._write_var('MAGIC', 'Iout')
+        self._write_var('MAGIC', b'Iout')
         self._write_var('VERSION_OFFSET', 225)  # todo or 226??
 
         roi_writer = getattr(self, '_write_roi_' + self.roi_obj.type)
@@ -230,7 +230,7 @@ class ROIEncoder(ROIFileObject):
 
     def __enter__(self):
         self.f_obj = open(self.path, 'wb')
-        pad = struct.pack('128b', *np.zeros(128))
+        pad = struct.pack('128b', *np.zeros(128, dtype=int))
         self.f_obj.write(pad)
         return self
 
@@ -300,7 +300,7 @@ class ROIEncoder(ROIFileObject):
 
         self._write_var('NAME_LENGTH', len(self.name))
         self.f_obj.seek(self.name_offset)
-        self.f_obj.write(self.name)
+        self.f_obj.write(self.name.encode())
 
 
 class ROIDecoder(ROIFileObject):
