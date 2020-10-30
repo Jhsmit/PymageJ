@@ -409,8 +409,8 @@ class ROIDecoder(ROIFileObject):
 
         n_coords = self.header['N_COORDINATES']
         self.f_obj.seek(64)
-        binary = self.f_obj.read(2*n_coords*2)
-        coords = np.array(struct.unpack('>' + str(2*n_coords) + 'h', binary))
+        binary = self.f_obj.read(2 * n_coords * 2)
+        coords = np.array(struct.unpack('>' + str(2 * n_coords) + 'h', binary))
         x_coords = np.array(coords[:n_coords])
         y_coords = np.array(coords[n_coords:])
 
