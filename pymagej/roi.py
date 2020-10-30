@@ -17,6 +17,7 @@ import re
 from collections import namedtuple
 import os
 
+
 # http://rsb.info.nih.gov/ij/developer/source/ij/io/RoiDecoder.java.html
 # http://rsb.info.nih.gov/ij/developer/source/ij/io/RoiEncoder.java.html
 
@@ -29,6 +30,22 @@ class ROIObject(object):
 
 class ROIPolygon(ROIObject):
     type = 'polygon'
+
+    def __init__(self, top, left, bottom, right, x_coords, y_coords):
+        self.top = top
+        self.left = left
+        self.bottom = bottom
+        self.right = right
+        self.x_coords = x_coords
+        self.y_coords = y_coords
+
+    @property
+    def width(self):
+        return self.x_coords.max() - self.x_coords.min() + 1
+
+    @property
+    def height(self):
+        return self.y_coords.max() - self.y_coords.min() + 1
 
 
 class ROIRect(ROIObject):
@@ -60,9 +77,23 @@ class ROIRect(ROIObject):
 class ROIOval(ROIObject):
     type = 'oval'
 
+    def __init__(self, top, left, bottom, right):
+        self.top = top
+        self.left = left
+        self.bottom = bottom
+        self.right = right
+
+    @property
+    def width(self):
+        return self.right - self.left
+
+    @property
+    def height(self):
+        return self.bottom - self.top
+
     @property
     def area(self):
-        raise NotImplementedError('Area of oval ROI is not implemented')
+        return self.width * self.height * np.pi / 4
 
 
 class ROILine(ROIObject):
@@ -139,7 +170,6 @@ HeaderTuple = namedtuple('Header_variables', 'type size offset')
 
 
 class ROIFileObject(object):
-
     header1_fields = [
         # 'VAR_NAME', 'type', offset'
         ['MAGIC', '4s', 0],
@@ -238,8 +268,25 @@ class ROIEncoder(ROIFileObject):
         self.f_obj.close()
         return False
 
-    def _get_roi_polygon(self):
-        raise NotImplementedError('Writing roi type polygon is not implemented')
+    def _write_roi_polygon(self):
+        self._write_var('TYPE', self.roi_types_rev[self.roi_obj.type])
+        self._write_var('TOP', self.roi_obj.top)
+        self._write_var('LEFT', self.roi_obj.left)
+        self._write_var('BOTTOM', self.roi_obj.bottom)
+        self._write_var('RIGHT', self.roi_obj.right)
+        self._write_var('HEADER2_OFFSET', 64)
+        self._write_var('NAME_OFFSET', self.name_offset)
+        self._write_name()
+
+        n_coords = len(self.roi_obj.x_coords)
+        self._write_var('N_COORDINATES', n_coords)
+
+        self.f_obj.seek(64)
+        coords = np.concatenate([self.roi_obj.x_coords, self.roi_obj.y_coords])
+
+        binary = struct.pack('>' + str(2 * n_coords) + 'h', *coords)
+        self.f_obj.seek(64)
+        self.f_obj.write(binary)
 
     def _write_roi_rect(self):
         self._write_var('TYPE', self.roi_types_rev[self.roi_obj.type])
@@ -252,7 +299,15 @@ class ROIEncoder(ROIFileObject):
         self._write_name()
 
     def _write_roi_oval(self):
-        raise NotImplementedError('Writing roi type oval is not implemented')
+        #todo call write rect-like function
+        self._write_var('TYPE', self.roi_types_rev[self.roi_obj.type])
+        self._write_var('TOP', self.roi_obj.top)
+        self._write_var('LEFT', self.roi_obj.left)
+        self._write_var('BOTTOM', self.roi_obj.bottom)
+        self._write_var('RIGHT', self.roi_obj.right)
+        self._write_var('HEADER2_OFFSET', 64)
+        self._write_var('NAME_OFFSET', self.name_offset)
+        self._write_name()
 
     def _write_roi_line(self):
         raise NotImplementedError('Writing roi type line is not implemented')
@@ -359,7 +414,20 @@ class ROIDecoder(ROIFileObject):
         return roi_reader()
 
     def _get_roi_polygon(self):
-        raise NotImplementedError('Reading roi type polygon is not implemented')
+        params = ['TOP', 'LEFT', 'BOTTOM', 'RIGHT']
+        for p in params:
+            self._set_header(p)
+
+        top, left, bottom, right = [self.header[p] for p in params]
+
+        n_coords = self.header['N_COORDINATES']
+        self.f_obj.seek(64)
+        binary = self.f_obj.read(2 * n_coords * 2)
+        coords = np.array(struct.unpack('>' + str(2 * n_coords) + 'h', binary))
+        x_coords = np.array(coords[:n_coords])
+        y_coords = np.array(coords[n_coords:])
+
+        return ROIPolygon(top, left, bottom, right, x_coords, y_coords)
 
     def _get_roi_rect(self):
         self._set_header('ROUNDED_RECT_ARC_SIZE')
@@ -380,7 +448,7 @@ class ROIDecoder(ROIFileObject):
 
         top, left, bottom, right = [self.header[p] for p in params]
 
-        raise NotImplementedError('Reading roi type oval is not implemented')
+        return ROIOval(top, left, bottom, right)
 
     def _get_roi_line(self):
         params = ['X1', 'Y1', 'X2', 'Y2']
