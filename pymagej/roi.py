@@ -327,8 +327,8 @@ class ROIDecoder(ROIFileObject):
             self._set_header(h)
 
         for key in self.header:
-            print key
-            print self.header[key]
+            print(key)
+            print(self.header[key])
 
     def read_header(self):
         if self._get_var('MAGIC') != 'Iout':
