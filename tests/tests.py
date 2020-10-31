@@ -18,10 +18,12 @@ import os
 
 from pymagej.roi import ROIEncoder, ROIDecoder, ROIRect, ROIFreehand, ROIOval, ROIPolygon, ROILine, ROIPolyline
 
+directory = os.path.dirname(__file__)
+
 
 class ROITest(unittest.TestCase):
     def test_decoder_freehand(self):
-        with ROIDecoder('freehand.roi') as roi:
+        with ROIDecoder(os.path.join(directory, 'freehand.roi')) as roi:
             roi_obj = roi.get_roi()
         self.assertIsInstance(roi_obj, ROIFreehand)
         self.assertEqual(len(roi_obj.x_coords), 117)
@@ -45,9 +47,8 @@ class ROITest(unittest.TestCase):
         self.assertTrue(np.allclose(roi_obj_read.y_coords, y_coords))
         self.assertEqual(roi_obj_read.name, 'freehand_test')
 
-
     def test_decoder_rect(self):
-        with ROIDecoder('rect.roi') as roi:
+        with ROIDecoder(os.path.join(directory, 'rect.roi')) as roi:
             roi_obj = roi.get_roi()
         self.assertIsInstance(roi_obj, ROIRect)
         self.assertEqual(roi_obj.top, 0)
@@ -74,7 +75,7 @@ class ROITest(unittest.TestCase):
         self.assertEqual(roi_out.name, 'rect_test')
 
     def test_decoder_oval(self):
-        with ROIDecoder('oval.roi') as roi:
+        with ROIDecoder(os.path.join(directory, 'oval.roi')) as roi:
             roi_obj = roi.get_roi()
 
         self.assertIsInstance(roi_obj, ROIOval)
@@ -102,7 +103,7 @@ class ROITest(unittest.TestCase):
         self.assertEqual(roi_obj.name, 'oval_test')
 
     def test_decoder_polygon(self):
-        with ROIDecoder('polygon.roi') as roi:
+        with ROIDecoder(os.path.join(directory, 'polygon.roi')) as roi:
             roi_obj = roi.get_roi()
 
         self.assertIsInstance(roi_obj, ROIPolygon)
@@ -140,7 +141,7 @@ class ROITest(unittest.TestCase):
         self.assertEqual('polygon_test', roi_obj.name)
 
     def test_decoder_line(self):
-        with ROIDecoder('line.roi') as roi:
+        with ROIDecoder(os.path.join(directory, 'line.roi')) as roi:
             roi_obj = roi.get_roi()
         self.assertIsInstance(roi_obj, ROILine)
         self.assertEqual(roi_obj.x1, 134.75)
@@ -169,7 +170,7 @@ class ROITest(unittest.TestCase):
         self.assertEqual(roi_obj_read.area, 0)
 
     def test_decoder_polyline(self):
-        with ROIDecoder('polyline.roi') as roi:
+        with ROIDecoder(os.path.join(directory, 'polyline.roi')) as roi:
             roi_obj = roi.get_roi()
         self.assertIsInstance(roi_obj, ROIPolyline)
         self.assertEqual(len(roi_obj.x_coords), 8)
