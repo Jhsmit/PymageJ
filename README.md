@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/Jhsmit/PymageJ.svg?branch=master)](https://travis-ci.org/Jhsmit/PymageJ)
+
 # PymageJ
 Python tools for ImageJ. 
 Features: read/write ImageJ ROIs.
