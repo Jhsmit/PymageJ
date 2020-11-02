@@ -31,6 +31,16 @@ with ROIEncoder('roi_filepath.roi', roi_obj) as roi:
   
 ```
 
-Currently only writing of rectangle type ROI is supported.
+Read/write is supported for the following ROI types:
+
+- Polygon
+- Rectangle
+- Oval
+- Line
+- Freeline
+- Polyline
+- Freehand
+
+
 
 Please make issues for feature requests/bug reports!
