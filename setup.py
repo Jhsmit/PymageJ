@@ -1,13 +1,13 @@
 from distutils.core import setup
 
 setup(
-    name='PymageJ',
-    version='0.1',
+    name='Pymagej',
+    version='0.2.1',
     description='Python tools for ImageJ',
     author='Jochem Smit',
     author_email='jhsmit@mgail.com',
     url='https://github.com/Jhsmit/PymageJ/',
-    packages=['PymageJ'],
+    packages=['pymagej'],
     license='GNU',
     classifiers=[
         'Development Status :: 3 - Alpha',
