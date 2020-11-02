@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/Jhsmit/PymageJ.svg?branch=master)](https://travis-ci.org/Jhsmit/PymageJ)
+[![Build Status](https://travis-ci.com/Jhsmit/PymageJ.svg?branch=master)](https://travis-ci.com/Jhsmit/PymageJ)
 
 # PymageJ
 Python tools for ImageJ. 
