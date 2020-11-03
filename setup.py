@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='Pymagej',
-    version='0.2.3',
+    version='0.2.1',
     description='Python tools for ImageJ',
     author='Jochem Smit',
     author_email='jhsmit@mgail.com',
