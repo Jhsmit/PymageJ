@@ -43,4 +43,4 @@ Read/write is supported for the following ROI types:
 
 
 
-Please make issues for feature requests/bug reports!
+See also: https://github.com/hadim/read-roi
